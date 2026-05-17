@@ -1,3 +1,4 @@
 qemu_storage
 *.iso
 iso-build
+user-data

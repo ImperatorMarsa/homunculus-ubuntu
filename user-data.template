@@ -3,6 +3,11 @@
 # Ubuntu Server 26.04 LTS - autoinstall на физический диск (btrfs)
 # Целевой диск: ATA MT-128 (~128 GB), проброшенный в qemux/qemu как /disk2
 # Внутренний диск VM (16 GB qemu_storage) НЕ участвует в установке
+#
+# Шаблон для GitHub Actions: чувствительные поля заменяются через envsubst.
+# Секреты:
+#   ADMIN_PASSWORD_HASH  — хеш пароля (mkpasswd -m sha-512 / openssl passwd -6)
+#   SSH_PUBLIC_KEY       — содержимое публичного ключа SSH
 # ============================================================================
 
 autoinstall:
@@ -135,20 +140,10 @@ autoinstall:
         path: /boot/efi
 
   # ----- Пользователь ---------------------------------------------------------
-  # Имя пользователя не должно совпадать с одним из зарезервированных имён.
-  #
-  # Список зарезервированных имён: root, daemon, bin, sys, sync, games, man, lp,
-  # mail, news, uucp, proxy, www-data, backup, list, irc, gnats, nobody, systemd-*,
-  # messagebus, syslog, _apt, tss, uuidd, tcpdump, landscape, pollinate, sshd.
   identity:
     realname: "Timofey Sitnikov"
     username: timofey
-    # ВНИМАНИЕ: сгенерируй СВОЙ хеш командой:
-    #   mkpasswd -m sha-512
-    # либо:
-    #   openssl passwd -6
-    # Хеш ниже соответствует паролю "123" — ОБЯЗАТЕЛЬНО замени!
-    password: "$6$C26QmKCM9ZzJNNo8$ASSc4dUeojXbqYGofN6qHNORqpeFQ1kdKzdrnBRBPDgSaeq/iwfsI67Sb2WLl21fiGSRjost3KE6BuUEv.yP5."
+    password: "${ADMIN_PASSWORD_HASH}"
     hostname: ubuntu-server
 
   # ----- SSH ------------------------------------------------------------------
@@ -156,17 +151,15 @@ autoinstall:
     install-server: true
     allow-pw: false # только по ключу
     authorized-keys:
-      # ЗАМЕНИ на свой публичный ключ (содержимое ~/.ssh/id_ed25519.pub)
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFAAHeRHDtv6DHz068yGdGfCGUy/VCQSLNOfSAUebo3A
+      - "${SSH_PUBLIC_KEY}"
 
   # ----- Базовые пакеты -------------------------------------------------------
-  # Docker НЕ ставим (поставишь сам через официальный PPA после установки)
   packages:
-    - btrfs-progs # утилиты для управления btrfs
+    - btrfs-progs
     - ca-certificates
     - curl
     - git
-    - gnupg # понадобится для добавления Docker PPA
+    - gnupg
     - htop
     - lsb-release
     - nala
@@ -180,11 +173,10 @@ autoinstall:
   kernel:
     flavor: generic
   kernel-crash-dumps:
-    enabled: false # для VM обычно не нужны
+    enabled: false
 
   # ----- Финальные команды в /target -----------------------------------------
   late-commands:
-    # Включаем journald persistent logging
     - curtin in-target -- mkdir -p /var/log/journal
     - curtin in-target -- systemd-tmpfiles --create --prefix /var/log/journal
 

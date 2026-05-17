@@ -1,0 +1,93 @@
+name: Build Ubuntu Autoinstall ISO
+
+on:
+  workflow_dispatch:
+    inputs:
+      ubuntu_iso_url:
+        description: 'URL исходного Ubuntu Server ISO'
+        required: false
+        default: 'https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso'
+  push:
+    branches: [main, master]
+    paths:
+      - 'user-data.template'
+      - 'meta-data'
+      - 'build-autoinstall-iso.sh'
+
+env:
+  DEFAULT_ISO_URL: 'https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate secrets
+        env:
+          ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+        run: |
+          missing=()
+          [[ -z "$ADMIN_PASSWORD_HASH" ]] && missing+=("ADMIN_PASSWORD_HASH")
+          [[ -z "$SSH_PUBLIC_KEY" ]]      && missing+=("SSH_PUBLIC_KEY")
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "::error::Не заданы обязательные секреты: ${missing[*]}"
+            echo "Добавь их в Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y xorriso p7zip-full
+
+      - name: Resolve ISO URL
+        id: iso
+        run: |
+          url="${{ github.event.inputs.ubuntu_iso_url || env.DEFAULT_ISO_URL }}"
+          filename="$(basename "$url")"
+          echo "url=$url"           >> "$GITHUB_OUTPUT"
+          echo "filename=$filename" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Ubuntu ISO
+        id: cache-iso
+        uses: actions/cache@v4
+        with:
+          path: ubuntu-source.iso
+          key: iso-${{ steps.iso.outputs.filename }}
+
+      - name: Download Ubuntu Server ISO
+        if: steps.cache-iso.outputs.cache-hit != 'true'
+        run: |
+          echo "Скачиваем: ${{ steps.iso.outputs.url }}"
+          wget --progress=dot:giga -O ubuntu-source.iso "${{ steps.iso.outputs.url }}"
+
+      - name: Generate user-data from template
+        env:
+          ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+        run: |
+          # Подставляем только известные переменные, остальные ${...} не трогаем
+          envsubst '$ADMIN_PASSWORD_HASH $SSH_PUBLIC_KEY' \
+            < user-data.template \
+            > user-data
+
+      - name: Build autoinstall ISO
+        env:
+          OUT_ISO: ubuntu-autoinstall.iso
+          USER_DATA: ./user-data
+          META_DATA: ./meta-data
+        run: |
+          chmod +x build-autoinstall-iso.sh
+          ./build-autoinstall-iso.sh ubuntu-source.iso
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-autoinstall-${{ github.run_number }}
+          path: ubuntu-autoinstall.iso
+          retention-days: 14
+          compression-level: 0  # ISO уже содержит сжатые данные
