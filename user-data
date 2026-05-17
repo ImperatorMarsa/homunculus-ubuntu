@@ -135,6 +135,11 @@ autoinstall:
         path: /boot/efi
 
   # ----- Пользователь ---------------------------------------------------------
+  # Имя пользователя не должно совпадать с одним из зарезервированных имён.
+  #
+  # Список зарезервированных имён: root, daemon, bin, sys, sync, games, man, lp,
+  # mail, news, uucp, proxy, www-data, backup, list, irc, gnats, nobody, systemd-*,
+  # messagebus, syslog, _apt, tss, uuidd, tcpdump, landscape, pollinate, sshd.
   identity:
     realname: "Timofey Sitnikov"
     username: timofey
