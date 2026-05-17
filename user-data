@@ -1,0 +1,187 @@
+#cloud-config
+# ============================================================================
+# Ubuntu Server 26.04 LTS - autoinstall на физический диск (btrfs)
+# Целевой диск: ATA MT-128 (~128 GB), проброшенный в qemux/qemu как /disk2
+# Внутренний диск VM (16 GB qemu_storage) НЕ участвует в установке
+# ============================================================================
+
+autoinstall:
+  version: 1
+
+  # ----- Локаль и клавиатура --------------------------------------------------
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+    variant: ""
+
+  # ----- Сеть -----------------------------------------------------------------
+  # DHCP по умолчанию на всех интерфейсах eth*/en*
+  network:
+    version: 2
+    ethernets:
+      any-ethernet:
+        match:
+          name: "en*"
+        dhcp4: true
+        dhcp6: false
+
+  # ----- Зеркало apt и обновления ---------------------------------------------
+  apt:
+    geoip: true
+    preserve_sources_list: false
+    mirror-selection:
+      primary:
+        - country-mirror
+        - uri: "http://archive.ubuntu.com/ubuntu"
+    fallback: abort
+
+  updates: security
+
+  # ----- Источник установки ---------------------------------------------------
+  # Полный server (а не минимальный) — даёт нормальный набор утилит
+  source:
+    id: ubuntu-server
+    search_drivers: false
+
+  # ----- Не ставить OEM и сторонние драйверы (это VM) -------------------------
+  drivers:
+    install: false
+  oem:
+    install: false
+
+  # ============================================================================
+  # STORAGE: btrfs с подтомами @ и @home на проброшенном физическом SSD
+  # ============================================================================
+  # Логика матчинга:
+  #   - Внутренний диск VM = ~16 GB (qemux/qemu по умолчанию)
+  #   - Физический MT-128  = ~128 GB
+  #   - Берём САМЫЙ БОЛЬШОЙ диск (size: largest) — это гарантирует именно SSD
+  #   - install-media НЕ совпадает с этими дисками (он на отдельном CD-ROM)
+  # ============================================================================
+  storage:
+    swap:
+      size: 0          # отключаем swap-раздел; при желании можно добавить
+                       # swapfile в late-commands (см. ниже)
+    config:
+      # -------- Диск ----------------------------------------------------------
+      - type: disk
+        id: disk-target
+        ptable: gpt
+        wipe: superblock-recursive
+        preserve: false
+        grub_device: false       # GRUB ставится на EFI-партицию, не на MBR
+        match:
+          size: largest          # самый большой диск = физический MT-128
+
+      # -------- EFI System Partition (1 GiB, FAT32) ---------------------------
+      - type: partition
+        id: part-efi
+        device: disk-target
+        size: 1G
+        flag: boot
+        grub_device: true
+        preserve: false
+      - type: format
+        id: fmt-efi
+        volume: part-efi
+        fstype: fat32
+        preserve: false
+
+      # -------- /boot (2 GiB, ext4) -------------------------------------------
+      # Отдельный /boot на ext4 - GRUB исторически надёжнее работает с ext4,
+      # а ядро/initramfs не нуждаются в snapshot-возможностях btrfs.
+      - type: partition
+        id: part-boot
+        device: disk-target
+        size: 2G
+        preserve: false
+      - type: format
+        id: fmt-boot
+        volume: part-boot
+        fstype: ext4
+        preserve: false
+
+      # -------- Корневой btrfs (остаток диска) --------------------------------
+      - type: partition
+        id: part-root
+        device: disk-target
+        size: -1               # всё оставшееся место
+        preserve: false
+      - type: format
+        id: fmt-root
+        volume: part-root
+        fstype: btrfs
+        preserve: false
+
+      # -------- Монтирование --------------------------------------------------
+      # ВАЖНО: curtin при fstype=btrfs автоматически создаёт подтома @ (для /)
+      # и @home (для /home) и монтирует их с правильными опциями subvol=.
+      # Это поведение по умолчанию для btrfs в curtin/subiquity.
+      - type: mount
+        id: mount-root
+        device: fmt-root
+        path: /
+        options: "defaults,compress=zstd:3,noatime,space_cache=v2"
+
+      - type: mount
+        id: mount-boot
+        device: fmt-boot
+        path: /boot
+
+      - type: mount
+        id: mount-efi
+        device: fmt-efi
+        path: /boot/efi
+
+  # ----- Пользователь ---------------------------------------------------------
+  identity:
+    realname: "Administrator"
+    username: admin
+    # ВНИМАНИЕ: сгенерируй СВОЙ хеш командой:
+    #   mkpasswd -m sha-512
+    # либо:
+    #   openssl passwd -6
+    # Хеш ниже соответствует паролю "changeme" — ОБЯЗАТЕЛЬНО замени!
+    password: "$6$rounds=4096$saltsaltsalt$3xQ8/0X3xJ7l5Rs7w2YJWBxLqVF4nQjV8cZQ5xKZQYxKZQYxKZQYxKZQYxKZQYxKZQYxKZQYxKZQYxKZQYxKZQ0"
+    hostname: ubuntu-server
+
+  # ----- SSH ------------------------------------------------------------------
+  ssh:
+    install-server: true
+    allow-pw: false                # только по ключу
+    authorized-keys:
+      # ЗАМЕНИ на свой публичный ключ (содержимое ~/.ssh/id_ed25519.pub)
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI_REPLACE_WITH_YOUR_REAL_PUBLIC_KEY user@host
+
+  # ----- Базовые пакеты -------------------------------------------------------
+  # Docker НЕ ставим (поставишь сам через официальный PPA после установки)
+  packages:
+    - btrfs-progs           # утилиты для управления btrfs
+    - curl
+    - ca-certificates
+    - gnupg                 # понадобится для добавления Docker PPA
+    - lsb-release
+    - vim
+    - htop
+    - net-tools
+
+  # ----- Часовой пояс ---------------------------------------------------------
+  timezone: Europe/Amsterdam
+
+  # ----- Kernel ---------------------------------------------------------------
+  kernel:
+    flavor: generic
+  kernel-crash-dumps:
+    enabled: false          # для VM обычно не нужны
+
+  # ----- Финальные команды в /target -----------------------------------------
+  late-commands:
+    # Разрешаем sudo без пароля для пользователя admin (опционально)
+    - echo 'admin ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/90-admin
+    - chmod 440 /target/etc/sudoers.d/90-admin
+
+    # Включаем journald persistent logging
+    - curtin in-target -- mkdir -p /var/log/journal
+    - curtin in-target -- systemd-tmpfiles --create --prefix /var/log/journal
+
+  shutdown: reboot
