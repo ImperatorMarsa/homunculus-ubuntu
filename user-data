@@ -53,15 +53,16 @@ autoinstall:
   # STORAGE: btrfs с подтомами @ и @home на проброшенном физическом SSD
   # ============================================================================
   # Логика матчинга:
-  #   - Внутренний диск VM = ~16 GB (qemux/qemu по умолчанию)
+  #   - Внутренний диск VM = ~4 GB (qemux/qemu по умолчанию)
   #   - Физический MT-128  = ~128 GB
   #   - Берём САМЫЙ БОЛЬШОЙ диск (size: largest) — это гарантирует именно SSD
   #   - install-media НЕ совпадает с этими дисками (он на отдельном CD-ROM)
   # ============================================================================
   storage:
     swap:
-      size: 0          # отключаем swap-раздел; при желании можно добавить
-                       # swapfile в late-commands (см. ниже)
+      size:
+        0 # отключаем swap-раздел; при желании можно добавить
+        # swapfile в late-commands (см. ниже)
     config:
       # -------- Диск ----------------------------------------------------------
       - type: disk
@@ -69,9 +70,9 @@ autoinstall:
         ptable: gpt
         wipe: superblock-recursive
         preserve: false
-        grub_device: false       # GRUB ставится на EFI-партицию, не на MBR
+        grub_device: false # GRUB ставится на EFI-партицию, не на MBR
         match:
-          size: largest          # самый большой диск = физический MT-128
+          size: largest # самый большой диск = физический MT-128
 
       # -------- EFI System Partition (1 GiB, FAT32) ---------------------------
       - type: partition
@@ -105,7 +106,7 @@ autoinstall:
       - type: partition
         id: part-root
         device: disk-target
-        size: -1               # всё оставшееся место
+        size: -1 # всё оставшееся место
         preserve: false
       - type: format
         id: fmt-root
@@ -135,35 +136,36 @@ autoinstall:
 
   # ----- Пользователь ---------------------------------------------------------
   identity:
-    realname: "Administrator"
-    username: admin
+    realname: "Timofey Sitnikov"
+    username: timofey
     # ВНИМАНИЕ: сгенерируй СВОЙ хеш командой:
     #   mkpasswd -m sha-512
     # либо:
     #   openssl passwd -6
-    # Хеш ниже соответствует паролю "changeme" — ОБЯЗАТЕЛЬНО замени!
-    password: "$6$rounds=4096$saltsaltsalt$3xQ8/0X3xJ7l5Rs7w2YJWBxLqVF4nQjV8cZQ5xKZQYxKZQYxKZQYxKZQYxKZQYxKZQYxKZQYxKZQYxKZQYxKZQ0"
+    # Хеш ниже соответствует паролю "123" — ОБЯЗАТЕЛЬНО замени!
+    password: "$6$C26QmKCM9ZzJNNo8$ASSc4dUeojXbqYGofN6qHNORqpeFQ1kdKzdrnBRBPDgSaeq/iwfsI67Sb2WLl21fiGSRjost3KE6BuUEv.yP5."
     hostname: ubuntu-server
 
   # ----- SSH ------------------------------------------------------------------
   ssh:
     install-server: true
-    allow-pw: false                # только по ключу
+    allow-pw: false # только по ключу
     authorized-keys:
       # ЗАМЕНИ на свой публичный ключ (содержимое ~/.ssh/id_ed25519.pub)
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI_REPLACE_WITH_YOUR_REAL_PUBLIC_KEY user@host
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFAAHeRHDtv6DHz068yGdGfCGUy/VCQSLNOfSAUebo3A
 
   # ----- Базовые пакеты -------------------------------------------------------
   # Docker НЕ ставим (поставишь сам через официальный PPA после установки)
   packages:
-    - btrfs-progs           # утилиты для управления btrfs
-    - curl
+    - btrfs-progs # утилиты для управления btrfs
     - ca-certificates
-    - gnupg                 # понадобится для добавления Docker PPA
-    - lsb-release
-    - vim
+    - curl
+    - git
+    - gnupg # понадобится для добавления Docker PPA
     - htop
+    - lsb-release
     - net-tools
+    - vim
 
   # ----- Часовой пояс ---------------------------------------------------------
   timezone: Europe/Amsterdam
@@ -172,14 +174,10 @@ autoinstall:
   kernel:
     flavor: generic
   kernel-crash-dumps:
-    enabled: false          # для VM обычно не нужны
+    enabled: false # для VM обычно не нужны
 
   # ----- Финальные команды в /target -----------------------------------------
   late-commands:
-    # Разрешаем sudo без пароля для пользователя admin (опционально)
-    - echo 'admin ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/90-admin
-    - chmod 440 /target/etc/sudoers.d/90-admin
-
     # Включаем journald persistent logging
     - curtin in-target -- mkdir -p /var/log/journal
     - curtin in-target -- systemd-tmpfiles --create --prefix /var/log/journal

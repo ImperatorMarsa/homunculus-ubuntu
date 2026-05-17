@@ -4,12 +4,13 @@ services:
     container_name: qemu
     environment:
       # BOOT: "suse"
-      BOOT: "ubuntus"
+      # BOOT: "ubuntus"
+      BOOT_MODE: "uefi"
       USER_PORTS: "22,80,443,5900"
       ARGUMENTS: "-device usb-host,vendorid=0x1234,productid=0x1234"
       DISK_SIZE: "4G"
     volumes:
-      # - ./agama.iso:/boot.iso
+      - ./ubuntu-autoinstall.iso:/boot.iso
       - ./qemu_storage:/storage
     devices:
       - /dev/bus/usb
