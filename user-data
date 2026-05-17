@@ -169,6 +169,7 @@ autoinstall:
     - gnupg # понадобится для добавления Docker PPA
     - htop
     - lsb-release
+    - nala
     - net-tools
     - vim
 
