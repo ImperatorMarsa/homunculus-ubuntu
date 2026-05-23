@@ -155,6 +155,7 @@ autoinstall:
 
   # ----- Базовые пакеты -------------------------------------------------------
   packages:
+    # ----- minimal -----
     - btrfs-progs
     - ca-certificates
     - curl
@@ -165,6 +166,19 @@ autoinstall:
     - nala
     - net-tools
     - vim
+    # ----- i3 -----
+    - autorandr
+    - dex
+    - dunst
+    - feh
+    - i3
+    - kdeconnect
+    - lightdm-gtk-greeter
+    - light-locker
+    - network-manager-applet
+    - picom
+    - x11-xserver-utils
+    - xfce-polkit
 
   # ----- Часовой пояс ---------------------------------------------------------
   timezone: Europe/Amsterdam
