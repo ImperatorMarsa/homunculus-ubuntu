@@ -4,18 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       ubuntu_iso_url:
-        description: 'URL исходного Ubuntu Server ISO'
+        description: "URL исходного Ubuntu Server ISO"
         required: false
-        default: 'https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso'
+        default: "https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso"
   push:
     branches: [main, master]
     paths:
-      - 'user-data.template'
-      - 'meta-data'
-      - 'build-autoinstall-iso.sh'
+      - "user-data.template"
+      - "meta-data"
+      - "build-autoinstall-iso.sh"
 
 env:
-  DEFAULT_ISO_URL: 'https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso'
+  DEFAULT_ISO_URL: "https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso"
 
 jobs:
   build:
@@ -42,7 +42,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y xorriso p7zip-full
+          sudo apt-get install -y xorriso p7zip-full gettext-base
 
       - name: Resolve ISO URL
         id: iso
@@ -90,4 +90,4 @@ jobs:
           name: ubuntu-autoinstall-${{ github.run_number }}
           path: ubuntu-autoinstall.iso
           retention-days: 14
-          compression-level: 0  # ISO уже содержит сжатые данные
+          compression-level: 0 # ISO уже содержит сжатые данные
