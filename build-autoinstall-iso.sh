@@ -117,6 +117,8 @@ VOLID=$(xorriso -indev "$SRC_ISO" -toc 2>/dev/null \
         | grep -oP "Volume id\s*:\s*'\K[^']+" \
         | head -1 || echo "UBUNTU_AUTOINSTALL")
 
+OUT_ISO_ABS="$(realpath -m "$OUT_ISO")"
+
 cd "$WORK_DIR/iso"
 
 xorriso -as mkisofs \
@@ -136,16 +138,16 @@ xorriso -as mkisofs \
         -eltorito-alt-boot \
         -e '--interval:appended_partition_2:::' \
           -no-emul-boot \
-        -o "../../$OUT_ISO" \
+        -o "$OUT_ISO_ABS" \
         .
 
 cd - >/dev/null
 
 # --- Готово -----------------------------------------------------------------
-ISO_SIZE=$(du -h "$OUT_ISO" | cut -f1)
+ISO_SIZE=$(du -h "$OUT_ISO_ABS" | cut -f1)
 echo
 echo "================================================================"
-echo "ГОТОВО: $OUT_ISO ($ISO_SIZE)"
+echo "ГОТОВО: $OUT_ISO_ABS ($ISO_SIZE)"
 echo "================================================================"
 echo
 echo "Следующие шаги:"
