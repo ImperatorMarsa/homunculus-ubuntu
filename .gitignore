@@ -2,5 +2,7 @@ qemu_storage
 *.iso
 iso-build
 user-data
+# act
 .env
 .secrets
+.act-cache
