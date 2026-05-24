@@ -39,6 +39,9 @@ autoinstall:
         - country-mirror
         - uri: "http://archive.ubuntu.com/ubuntu"
     fallback: abort
+    conf: |
+      APT::Install-Recommends "false";
+      APT::Install-Suggests "false";
 
   updates: security
 
@@ -173,12 +176,14 @@ autoinstall:
     - feh
     - i3
     - kdeconnect
+    - lightdm
     - lightdm-gtk-greeter
     - light-locker
     - network-manager-applet
     - picom
     - x11-xserver-utils
     - xfce-polkit
+    - xorg
 
   # ----- Часовой пояс ---------------------------------------------------------
   timezone: Europe/Amsterdam
@@ -193,5 +198,7 @@ autoinstall:
   late-commands:
     - curtin in-target -- mkdir -p /var/log/journal
     - curtin in-target -- systemd-tmpfiles --create --prefix /var/log/journal
+    - curtin in-target -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y gnome-shell ubuntu-desktop gdm3 2>/dev/null || true"
+    - curtin in-target -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get autoremove --purge -y"
 
   shutdown: reboot
