@@ -7,6 +7,10 @@ on:
         description: "URL исходного Ubuntu Server ISO"
         required: false
         default: "https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso"
+      ubuntu_iso_sha256:
+        description: "SHA256 исходного Ubuntu Server ISO"
+        required: false
+        default: "dec49008a71f6098d0bcfc822021f4d042d5f2db279e4d75bdd981304f1ca5d9"
   push:
     branches: [main, master]
     paths:
@@ -16,14 +20,55 @@ on:
 
 env:
   DEFAULT_ISO_URL: "https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso"
+  DEFAULT_ISO_SHA256: "dec49008a71f6098d0bcfc822021f4d042d5f2db279e4d75bdd981304f1ca5d9"
 
 jobs:
-  build:
+  download-iso:
+    runs-on: ubuntu-latest
+    outputs:
+      iso_filename: ${{ steps.iso.outputs.filename }}
+      iso_sha256: ${{ steps.iso.outputs.sha256 }}
+
+    steps:
+      - name: Resolve ISO URL
+        id: iso
+        run: |
+          url="${{ github.event.inputs.ubuntu_iso_url || env.DEFAULT_ISO_URL }}"
+          sha256="${{ github.event.inputs.ubuntu_iso_sha256 || env.DEFAULT_ISO_SHA256 }}"
+          filename="$(basename "$url")"
+          echo "url=$url"           >> "$GITHUB_OUTPUT"
+          echo "filename=$filename" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256"     >> "$GITHUB_OUTPUT"
+
+      - name: Cache Ubuntu ISO
+        id: cache-iso
+        uses: actions/cache@v4
+        with:
+          path: ubuntu-source.iso
+          key: iso-${{ steps.iso.outputs.sha256 }}
+
+      - name: Download Ubuntu Server ISO
+        if: steps.cache-iso.outputs.cache-hit != 'true'
+        run: |
+          echo "Скачиваем: ${{ steps.iso.outputs.url }}"
+          wget --progress=dot:giga -O ubuntu-source.iso "${{ steps.iso.outputs.url }}"
+
+      - name: Verify ISO checksum
+        if: steps.cache-iso.outputs.cache-hit != 'true'
+        run: |
+          echo "${{ steps.iso.outputs.sha256 }} *ubuntu-source.iso" | sha256sum --check
+
+  prepare-userdata:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y gettext-base
 
       - name: Validate secrets
         env:
@@ -39,41 +84,45 @@ jobs:
             exit 1
           fi
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y xorriso p7zip-full gettext-base
-
-      - name: Resolve ISO URL
-        id: iso
-        run: |
-          url="${{ github.event.inputs.ubuntu_iso_url || env.DEFAULT_ISO_URL }}"
-          filename="$(basename "$url")"
-          echo "url=$url"           >> "$GITHUB_OUTPUT"
-          echo "filename=$filename" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Ubuntu ISO
-        id: cache-iso
-        uses: actions/cache@v4
-        with:
-          path: ubuntu-source.iso
-          key: iso-${{ steps.iso.outputs.filename }}
-
-      - name: Download Ubuntu Server ISO
-        if: steps.cache-iso.outputs.cache-hit != 'true'
-        run: |
-          echo "Скачиваем: ${{ steps.iso.outputs.url }}"
-          wget --progress=dot:giga -O ubuntu-source.iso "${{ steps.iso.outputs.url }}"
-
       - name: Generate user-data from template
         env:
           ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
           SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
         run: |
-          # Подставляем только известные переменные, остальные ${...} не трогаем
           envsubst '$ADMIN_PASSWORD_HASH $SSH_PUBLIC_KEY' \
             < user-data.template \
             > user-data
+
+      - name: Upload user-data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: user-data
+          path: user-data
+          retention-days: 1
+
+  build-iso:
+    runs-on: ubuntu-latest
+    needs: [download-iso, prepare-userdata]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y xorriso p7zip-full
+
+      - name: Restore Ubuntu ISO from cache
+        uses: actions/cache@v4
+        with:
+          path: ubuntu-source.iso
+          key: iso-${{ needs.download-iso.outputs.iso_sha256 }}
+
+      - name: Download user-data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: user-data
 
       - name: Build autoinstall ISO
         env:
@@ -85,10 +134,9 @@ jobs:
           ./build-autoinstall-iso.sh ubuntu-source.iso
 
       - name: Upload ISO artifact
-        if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-autoinstall-${{ github.run_number }}
           path: ubuntu-autoinstall.iso
           retention-days: 14
-          compression-level: 0 # ISO уже содержит сжатые данные
+          compression-level: 0
