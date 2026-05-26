@@ -16,7 +16,7 @@ on:
     paths:
       - "user-data.template"
       - "meta-data"
-      - "build-autoinstall-iso.sh"
+      - "src/build-autoinstall-iso.sh"
 
 env:
   DEFAULT_ISO_URL: "https://releases.ubuntu.com/26.04/ubuntu-26.04-live-server-amd64.iso"
@@ -130,8 +130,8 @@ jobs:
           USER_DATA: ./user-data
           META_DATA: ./meta-data
         run: |
-          chmod +x build-autoinstall-iso.sh
-          ./build-autoinstall-iso.sh ubuntu-source.iso
+          chmod +x src/build-autoinstall-iso.sh
+          ./src/build-autoinstall-iso.sh ubuntu-source.iso
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
