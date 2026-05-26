@@ -14,8 +14,8 @@ on:
   push:
     branches: [main, master]
     paths:
-      - "user-data.template"
-      - "meta-data"
+      - "config/user-data.template"
+      - "config/meta-data"
       - "src/build-autoinstall-iso.sh"
 
 env:
@@ -90,7 +90,7 @@ jobs:
           SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
         run: |
           envsubst '$ADMIN_PASSWORD_HASH $SSH_PUBLIC_KEY' \
-            < user-data.template \
+            < config/user-data.template \
             > user-data
 
       - name: Upload user-data artifact
@@ -128,7 +128,7 @@ jobs:
         env:
           OUT_ISO: ubuntu-autoinstall.iso
           USER_DATA: ./user-data
-          META_DATA: ./meta-data
+          META_DATA: ./config/meta-data
         run: |
           chmod +x src/build-autoinstall-iso.sh
           ./src/build-autoinstall-iso.sh ubuntu-source.iso
