@@ -1,0 +1,26 @@
+# ----- minimal -----
+- btrfs-progs
+- ca-certificates
+- curl
+- git
+- gnupg
+- htop
+- lsb-release
+- nala
+- net-tools
+- vim
+# ----- i3 -----
+- autorandr
+- dex
+- dunst
+- feh
+- i3
+- kdeconnect
+- lightdm
+- lightdm-gtk-greeter
+- light-locker
+- network-manager-applet
+- picom
+- x11-xserver-utils
+- xfce-polkit
+- xorg

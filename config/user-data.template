@@ -156,34 +156,8 @@ autoinstall:
     authorized-keys:
       - "${SSH_PUBLIC_KEY}"
 
-  # ----- Базовые пакеты -------------------------------------------------------
-  packages:
-    # ----- minimal -----
-    - btrfs-progs
-    - ca-certificates
-    - curl
-    - git
-    - gnupg
-    - htop
-    - lsb-release
-    - nala
-    - net-tools
-    - vim
-    # ----- i3 -----
-    - autorandr
-    - dex
-    - dunst
-    - feh
-    - i3
-    - kdeconnect
-    - lightdm
-    - lightdm-gtk-greeter
-    - light-locker
-    - network-manager-applet
-    - picom
-    - x11-xserver-utils
-    - xfce-polkit
-    - xorg
+  # ----- Базовые пакеты (список в config/packages.yaml) ----------------------
+  packages: []
 
   # ----- Часовой пояс ---------------------------------------------------------
   timezone: Europe/Amsterdam
