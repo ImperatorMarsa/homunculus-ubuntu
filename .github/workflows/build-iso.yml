@@ -120,10 +120,17 @@ jobs:
           sudo apt-get install -y xorriso p7zip-full
 
       - name: Restore Ubuntu ISO from cache
+        id: cache-iso
         uses: actions/cache@v4
         with:
           path: ubuntu-source.iso
           key: iso-${{ needs.download-iso.outputs.iso_sha256 }}
+
+      - name: Download Ubuntu Server ISO (fallback)
+        if: steps.cache-iso.outputs.cache-hit != 'true'
+        run: |
+          url="${{ github.event.inputs.ubuntu_iso_url || env.DEFAULT_ISO_URL }}"
+          wget --progress=dot:giga -O ubuntu-source.iso "$url"
 
       - name: Download user-data artifact
         uses: actions/download-artifact@v4
