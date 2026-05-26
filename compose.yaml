@@ -3,10 +3,10 @@ services:
     image: qemux/qemu
     container_name: qemu
     environment:
-      BOOT_MODE: "uefi"
+      BOOT_MODE: "${BOOT_MODE:-uefi}"
       USER_PORTS: "22,80,443,5900"
-      ARGUMENTS: "-device usb-host,vendorid=0x1234,productid=0x1234"
-      DISK_SIZE: "4G"
+      ARGUMENTS: "${QEMU_EXTRA_ARGS:-}"
+      DISK_SIZE: "${DISK_SIZE:-4G}"
     volumes:
       - ./ubuntu-autoinstall.iso:/boot.iso
       - ./qemu_storage:/storage
@@ -14,15 +14,14 @@ services:
       - /dev/bus/usb
       - /dev/kvm
       - /dev/net/tun
-      - /dev/disk/by-id/ata-MT-128_9191219802151:/disk2
+      - ${DISK_DEVICE}:/disk2
     cap_add:
       - NET_ADMIN
     ports:
-      - 8006:8006
-      - 2222:22
-      - 2280:80
-      - 2443:443
-      - 5900:5900
+      - "${HOST_PORT_WEBUI:-8006}:8006"
+      - "${HOST_PORT_SSH:-2222}:22"
+      - "${HOST_PORT_HTTP:-2280}:80"
+      - "${HOST_PORT_HTTPS:-2443}:443"
+      - "${HOST_PORT_VNC:-5900}:5900"
     restart: no
     stop_grace_period: 2m
-
