@@ -1,2 +1,3 @@
+--bind
 --cache-server-path .act-cache
 --artifact-server-path .act-cache
